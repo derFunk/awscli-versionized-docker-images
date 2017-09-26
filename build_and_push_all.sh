@@ -3,6 +3,9 @@
 PUSH_EXISTING=${PUSH_EXISTING:-false}
 REPO=derfunk/awscli-versionized
 
+echo "Creating local base image..."
+docker build --pull --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
+
 # Get all versioned aws cli tags uploaded already available 
 i="1"
 echo -n > awscli-versioned-versions.txt
@@ -30,9 +33,12 @@ do
 	# only push to the versioned aws cli repo if it's not available online yet
 	if [ "${PUSH_EXISTING}" = "true" ] || ! grep -q "^${version}$" awscli-versioned-versions.txt; then
 		echo "Building and pushing aws-cli version ${version}..."
-    	docker build --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} .
+    	docker build --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
     	docker push ${REPO}:${version} && docker rmi ${REPO}:${version}
     else
     	echo "Not pushing aws-cli version ${version} because it's already present."
     fi
 done
+
+echo "Cleaning up..."
+docker rm -f awscli-versionized-base:latest || true
