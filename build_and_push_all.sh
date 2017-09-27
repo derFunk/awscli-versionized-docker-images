@@ -30,9 +30,14 @@ sort -t. -k 1,1nr -k 2,2nr -k 3,3nr -k 4,4nr awscli-versions_unsorted.txt > awsc
 rm awscli-versions_unsorted.txt
 
 BASE_BUILT=false
+LATEST_TAGGED=false
 
 while read version
 do
+
+    # We now that awscli version 1.10.55 is broken in pip.
+    if [ "${version}" = "1.10.55" ]; then continue; fi
+
 	# only push to the versioned aws cli repo if it's not available online yet
 	if [ "${PUSH_EXISTING}" = "true" ] || ! grep -q "^${version}$" awscli-versioned-versions.txt; then
 
@@ -46,6 +51,14 @@ do
 
     	docker build --compress --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
     	docker push ${REPO}:${version} && docker rmi ${REPO}:${version}
+        
+        if [ "${LATEST_TAGGED}" = "false" ]; then
+            # After we sorted the versions file, we know that the first version in it must be the latest version.
+            docker tag ${REPO}:${version} ${REPO}:latest \
+                && docker push ${REPO}:latest \
+                && docker rmi ${REPO}:latest
+            LATEST_TAGGED=true
+        fi
     else
     	echo "Not pushing aws-cli version ${version} because it's already present."
     fi
