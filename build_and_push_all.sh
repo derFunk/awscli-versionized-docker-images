@@ -1,10 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PUSH_EXISTING=${PUSH_EXISTING:-false}
 REPO=derfunk/awscli-versionized
-
-echo "Creating local base image..."
-docker build --pull --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
 
 # Get all versioned aws cli tags uploaded already available 
 i="1"
@@ -28,17 +25,29 @@ CHANGES_JSON_URL=$(echo ${JSON_MASTER} | jq -r '.tree[] | select(.path==".change
 JSON_CHANGES=$(curl -fs ${CHANGES_JSON_URL})
 echo ${JSON_CHANGES} | jq -r ".tree | .[].path" | grep "\d\+.*\.json" | sed "s/\.json//g" > awscli-versions.txt
 
+BASE_BUILT=false
+
 cat awscli-versions.txt | while read version
 do
 	# only push to the versioned aws cli repo if it's not available online yet
 	if [ "${PUSH_EXISTING}" = "true" ] || ! grep -q "^${version}$" awscli-versioned-versions.txt; then
+
+        if [ "${BASE_BUILT}" = "false" ]; then
+            echo "Creating local base image..."
+            docker build --pull --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
+            BASE_BUILT=true
+        fi
+
 		echo "Building and pushing aws-cli version ${version}..."
-    	docker build --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
+
+    	docker build --compress --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
     	docker push ${REPO}:${version} && docker rmi ${REPO}:${version}
     else
     	echo "Not pushing aws-cli version ${version} because it's already present."
     fi
 done
 
-echo "Cleaning up..."
-docker rm -f awscli-versionized-base:latest || true
+if [ "${BASE_BUILT}" = "true" ]; then
+    echo "Cleaning up..."
+    docker rmi -f awscli-versionized-base:latest || true
+fi
