@@ -23,11 +23,15 @@ CHANGES_JSON_URL=$(echo ${JSON_MASTER} | jq -r '.tree[] | select(.path==".change
 
 # Get all official aws cli versions 
 JSON_CHANGES=$(curl -fs ${CHANGES_JSON_URL})
-echo ${JSON_CHANGES} | jq -r ".tree | .[].path" | grep "\d\+.*\.json" | sed "s/\.json//g" > awscli-versions.txt
+echo ${JSON_CHANGES} | jq -r ".tree | .[].path" | grep "\d\+.*\.json" | sed "s/\.json//g" > awscli-versions_unsorted.txt
+
+# Sort versions
+sort -t. -k 1,1nr -k 2,2nr -k 3,3nr -k 4,4nr awscli-versions_unsorted.txt > awscli-versions.txt
+rm awscli-versions_unsorted.txt
 
 BASE_BUILT=false
 
-cat awscli-versions.txt | while read version
+while read version
 do
 	# only push to the versioned aws cli repo if it's not available online yet
 	if [ "${PUSH_EXISTING}" = "true" ] || ! grep -q "^${version}$" awscli-versioned-versions.txt; then
@@ -35,17 +39,17 @@ do
         if [ "${BASE_BUILT}" = "false" ]; then
             echo "Creating local base image..."
             docker build --pull --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
-            BASE_BUILT=true
+            BASE_BUILT=true 
         fi
-
-		echo "Building and pushing aws-cli version ${version}..."
+		
+        echo "Building and pushing aws-cli version ${version}..."
 
     	docker build --compress --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
     	docker push ${REPO}:${version} && docker rmi ${REPO}:${version}
     else
     	echo "Not pushing aws-cli version ${version} because it's already present."
     fi
-done
+done <<< $(cat awscli-versions.txt)
 
 if [ "${BASE_BUILT}" = "true" ]; then
     echo "Cleaning up..."
