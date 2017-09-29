@@ -31,6 +31,7 @@ rm awscli-versions_unsorted.txt
 
 BASE_BUILT=false
 LATEST_TAGGED=false
+PUSHED_IMAGES=
 
 while read version
 do
@@ -50,7 +51,7 @@ do
         echo "Building and pushing aws-cli version ${version}..."
 
     	docker build --compress --build-arg AWSCLI_VERSION=${version} -t ${REPO}:${version} -f Dockerfile .
-    	docker push ${REPO}:${version} && docker rmi ${REPO}:${version}
+    	docker push ${REPO}:${version} 
         
         if [ "${LATEST_TAGGED}" = "false" ]; then
             # After we sorted the versions file, we know that the first version in it must be the latest version.
@@ -59,6 +60,10 @@ do
                 && docker rmi ${REPO}:latest
             LATEST_TAGGED=true
         fi
+
+        docker rmi ${REPO}:${version}
+
+        PUSHED_IMAGES="${PUSHED_IMAGES} ${version}"
     else
     	echo "Not pushing aws-cli version ${version} because it's already present."
     fi
@@ -68,3 +73,5 @@ if [ "${BASE_BUILT}" = "true" ]; then
     echo "Cleaning up..."
     docker rmi -f awscli-versionized-base:latest || true
 fi
+
+[ -n "${PUSHED_IMAGES}" ] && { echo "Pushed images: ${PUSHED_IMAGES}"; }
