@@ -75,3 +75,5 @@ if [ "${BASE_BUILT}" = "true" ]; then
 fi
 
 [ -n "${PUSHED_IMAGES}" ] && { echo "Pushed images: ${PUSHED_IMAGES}"; }
+
+[ -e "./push_git.sh" ] && { ./push_git.sh; }
