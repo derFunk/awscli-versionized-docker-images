@@ -33,6 +33,8 @@ BASE_BUILT=false
 LATEST_TAGGED=false
 PUSHED_IMAGES=
 
+IFS=$'\n'
+
 while read version
 do
 
