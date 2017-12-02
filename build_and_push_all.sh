@@ -3,6 +3,8 @@
 PUSH_EXISTING=${PUSH_EXISTING:-false}
 REPO=derfunk/awscli-versionized
 
+set -e
+
 # Get all versioned aws cli tags uploaded already available 
 i="1"
 echo -n > awscli-versioned-versions.txt
@@ -46,7 +48,7 @@ do
 
         if [ "${BASE_BUILT}" = "false" ]; then
             echo "Creating local base image..."
-            docker build --pull --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
+            docker build --force-rm -t awscli-versionized-base:latest -f Dockerfile.base .
             BASE_BUILT=true 
         fi
 		
